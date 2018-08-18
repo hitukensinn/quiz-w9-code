@@ -308,10 +308,7 @@ with sess:
         feed_dict_to_use[is_training_placeholder] = True
 
         gs, _ = sess.run([global_step, train_step], feed_dict=feed_dict_to_use)
-        print("-----gs-----",gs)
         if gs % 10 == 0:
-            print("+++++++++++++++gs % 10 == 0+++++++++++++++",gs)
-            print("+++++++++++++++gs % 10 == 0+++++++++++++++",gs)
             loss, summary_string = sess.run([cross_entropy_loss, merged_summary_op], feed_dict=feed_dict_to_use)
             logging.debug("step {0} Current Loss: {1} ".format(gs, loss))
             end = time.time()
