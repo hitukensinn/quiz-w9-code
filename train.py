@@ -322,6 +322,7 @@ with sess:
                 logging.debug("Model saved in file: %s" % save_path)
 
             if gs % 200 == 0:
+                logging.debug("-----------------eval---------------" )
                 eval_folder = os.path.join(FLAGS.output_dir, 'eval')
                 if not os.path.exists(eval_folder):
                     os.makedirs(eval_folder)
