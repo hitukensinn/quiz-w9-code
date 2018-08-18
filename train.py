@@ -173,7 +173,8 @@ with tf.variable_scope("adam_vars"):
 
         # Let's get histogram of gradients for each layer and
         # visualize them later in tensorboard
-        tf.summary.histogram(gradient_name_to_save, current_gradient)
+        tf.summary.histogram(gradient_name_to_save, current_gradient,collections=None,
+    family=None)
 
     train_step = optimizer.apply_gradients(grads_and_vars=gradients, global_step=global_step)
 
