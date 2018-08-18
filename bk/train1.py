@@ -39,7 +39,7 @@ FLAGS, unparsed = parse_args()
 slim = tf.contrib.slim
 
 
-tf.reset_default_graph()
+tf.reset_default_graph()#防止重复运行时变量scope冲突的问题
 is_training_placeholder = tf.placeholder(tf.bool)
 batch_size = FLAGS.batch_size
 
@@ -52,7 +52,7 @@ image_tensor, orig_img_tensor, annotation_tensor = tf.cond(is_training_placehold
 
 feed_dict_to_use = {is_training_placeholder: True}
 
-upsample_factor = 16
+upsample_factor = 8
 number_of_classes = 21
 
 log_folder = os.path.join(FLAGS.output_dir, 'train')
@@ -68,7 +68,7 @@ with slim.arg_scope(vgg.vgg_arg_scope()):
     logits, end_points = vgg.vgg_16(image_tensor,
                                     num_classes=number_of_classes,
                                     is_training=is_training_placeholder,
-                                    spatial_squeeze=False,
+                                    spatial_squeeze=False,#是是否对最后的结果进行squeeze
                                     fc_conv_padding='SAME')
 
 downsampled_logits_shape = tf.shape(logits)
@@ -87,10 +87,19 @@ upsampled_logits_shape = tf.stack([
 
 pool4_feature = end_points['vgg_16/pool4']
 with tf.variable_scope('vgg_16/fc8'):
-    aux_logits_16s = slim.conv2d(pool4_feature, number_of_classes, [1, 1],
+    aux_logits_l4 = slim.conv2d(pool4_feature, number_of_classes, [1, 1],#32*32
                                  activation_fn=None,
                                  weights_initializer=tf.zeros_initializer,
                                  scope='conv_pool4')
+pool3_feature = end_points['vgg_16/pool3']
+with tf.variable_scope('vgg_16/fc7'):
+    aux_logits_l3 = slim.conv2d(pool3_feature, number_of_classes, [1, 1],#64*64
+                                 activation_fn=None,
+                                 weights_initializer=tf.zeros_initializer,
+                                 scope='conv_pool4')
+
+
+
 
 # Perform the upsampling
 upsample_filter_np_x2 = bilinear_upsample_weights(2,  # upsample_factor,
@@ -98,23 +107,30 @@ upsample_filter_np_x2 = bilinear_upsample_weights(2,  # upsample_factor,
 
 upsample_filter_tensor_x2 = tf.Variable(upsample_filter_np_x2, name='vgg_16/fc8/t_conv_x2')
 
-upsampled_logits = tf.nn.conv2d_transpose(logits, upsample_filter_tensor_x2,
-                                          output_shape=tf.shape(aux_logits_16s),
+upsampled_logits_l4 = tf.nn.conv2d_transpose(logits, upsample_filter_tensor_x2,#上采样的corenel
+                                          output_shape=tf.shape(aux_logits_l4),#希望输出的大小
                                           strides=[1, 2, 2, 1],
                                           padding='SAME')
+upsampled_logits_add_1 = aux_logits_l4 + upsampled_logits_l4#32*32
+upsampled_logits_l3 = tf.nn.conv2d_transpose(logits, upsample_filter_tensor_x2,
+                                          output_shape=tf.shape(aux_logits_l3),
+                                          strides=[1, 2, 2, 1],
+                                          padding='SAME')
+upsampled_logits = aux_logits_l3 + upsampled_logits_l3#64*64
 
 
-upsampled_logits = upsampled_logits + aux_logits_16s
 
-upsample_filter_np_x16 = bilinear_upsample_weights(upsample_factor,
+#upsampled_logits = upsampled_logits + aux_logits_16s
+
+upsample_filter_np_x8 = bilinear_upsample_weights(upsample_factor,
                                                    number_of_classes)
 
-upsample_filter_tensor_x16 = tf.Variable(upsample_filter_np_x16, name='vgg_16/fc8/t_conv_x16')
-upsampled_logits = tf.nn.conv2d_transpose(upsampled_logits, upsample_filter_tensor_x16,
+upsample_filter_tensor_x8 = tf.Variable(upsample_filter_np_x8, name='vgg_16/fc8/t_conv_x16')
+upsampled_logits = tf.nn.conv2d_transpose(upsampled_logits, upsample_filter_tensor_x8,
                                           output_shape=upsampled_logits_shape,
                                           strides=[1, upsample_factor, upsample_factor, 1],
                                           padding='SAME')
-
+print("upsampled_logits---",upsampled_logits)
 
 lbl_onehot = tf.one_hot(annotation_tensor, number_of_classes)
 cross_entropies = tf.nn.softmax_cross_entropy_with_logits(logits=upsampled_logits,
@@ -122,7 +138,7 @@ cross_entropies = tf.nn.softmax_cross_entropy_with_logits(logits=upsampled_logit
 
 cross_entropy_loss = tf.reduce_mean(tf.reduce_sum(cross_entropies, axis=-1))
 
-
+print("cross_entropies---",cross_entropies)
 # Tensor to get the final prediction for each pixel -- pay
 # attention that we don't need softmax in this case because
 # we only need the final decision. If we also need the respective
@@ -166,11 +182,13 @@ with tf.variable_scope("adam_vars"):
 # which is responsible for class predictions. We do this because
 # we will have different number of classes to predict and we can't
 # use the old ones as an initialization.
+#分类器，原来是4096*1000现在改变的，要exclude掉
 vgg_except_fc8_weights = slim.get_variables_to_restore(exclude=['vgg_16/fc8', 'adam_vars'])
 
 # Here we get variables that belong to the last layer of network.
 # As we saw, the number of classes that VGG was originally trained on
 # is different from ours -- in our case it is only 2 classes.
+#重新初始化的参数
 vgg_fc8_weights = slim.get_variables_to_restore(include=['vgg_16/fc8'])
 
 adam_optimizer_variables = slim.get_variables_to_restore(include=['adam_vars'])
