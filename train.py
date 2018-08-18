@@ -138,7 +138,7 @@ cross_entropies = tf.nn.softmax_cross_entropy_with_logits(logits=upsampled_logit
 
 cross_entropy_loss = tf.reduce_mean(tf.reduce_sum(cross_entropies, axis=-1))
 
-
+print("cross_entropies---",cross_entropies)
 # Tensor to get the final prediction for each pixel -- pay
 # attention that we don't need softmax in this case because
 # we only need the final decision. If we also need the respective
