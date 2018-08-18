@@ -111,12 +111,12 @@ upsampled_logits_l4 = tf.nn.conv2d_transpose(logits, upsample_filter_tensor_x2,#
                                           output_shape=tf.shape(aux_logits_l4),#希望输出的大小
                                           strides=[1, 2, 2, 1],
                                           padding='SAME')
-upsampled_logits_add_1 = pool4_feature + upsampled_logits_l4#32*32
+upsampled_logits_add_1 = aux_logits_l4 + upsampled_logits_l4#32*32
 upsampled_logits_l3 = tf.nn.conv2d_transpose(logits, upsample_filter_tensor_x2,
                                           output_shape=tf.shape(aux_logits_l3),
                                           strides=[1, 2, 2, 1],
                                           padding='SAME')
-upsampled_logits = pool3_feature + upsampled_logits_l3#64*64
+upsampled_logits = aux_logits_l3 + upsampled_logits_l3#64*64
 
 
 
