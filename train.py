@@ -92,7 +92,7 @@ with tf.variable_scope('vgg_16/fc8'):
                                  weights_initializer=tf.zeros_initializer,
                                  scope='conv_pool4')
 pool3_feature = end_points['vgg_16/pool3']
-with tf.variable_scope('vgg_16/pool4'):
+with tf.variable_scope('vgg_16/pool3'):
     aux_logits_l3 = slim.conv2d(pool3_feature, number_of_classes, [1, 1],#64*64
                                  activation_fn=None,
                                  weights_initializer=tf.zeros_initializer,
